@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# Change directory to /tmp
+cd /tmp
+
+# Source the function file
+. /tmp/ci/function
+
+# Abort if already executed
+if [ -e /tmp/abort.txt ]; then
+  exit 0
+fi
+
+# Compress ccache with pigz in a single zip
+com ccache 0
+
+echo "• Uploading Cache On Gdrive •"
+upload_ccache ccache.tar.gz
+tg "$rom_name ccache was uploaded successfully!
+Total Size: $(ls -sh ${PWD}/ccache.tar.gz | cut -d ' ' -f 1)
+Time Took: $(($SECONDS / 60)) minute(s) and $(($SECONDS % 60)) second(s).
+Status: $progress"
+
+rom_zip=$(ls /tmp/rom/out/target/product/*/*.zip)
+
+# Abort auto trigger if the build failed
+if [ -e /tmp/abort_loop.txt ]; then
+  rm -rf /tmp/rom
+  rm -rf /tmp/cache
+  exit 1
+fi
+
+if [ -z "$rom_zip" ]; then
+  # Update build type for the next build
+  build_type=$(cat /tmp/build_type.txt)
+
+  # Compile again as ROM isn't ready yet
+  git clone -b "$CIRRUS_BRANCH" "$github_repo" "$rom_name" && cd "$rom_name"
+  if [ -e "/tmp/rom/build.log" ] && grep -q -e ' 99% ' -e ' 98% ' -e ' 97% ' -e ' 96% ' -e ' 95% ' -e ' 94% ' -e ' 93% ' -e ' 92% ' -e ' 91% ' -e ' 90% ' "/tmp/rom/build.log"; then
+    git commit -sm "SH*T, HERE WE GO AGAIN | R" --allow-empty
+  else
+    git commit -sm "SH*T, HERE WE GO AGAIN | $build_type" --allow-empty
+  fi
+  git push -f
+else
+  # Drop empty commits
+  git clone -b "$CIRRUS_BRANCH" "$github_repo" "$rom_name" && cd "$rom_name"
+  git filter-branch --commit-filter 'git_commit_non_empty_tree "$@"' -f HEAD
+  git commit -sm "ci: $rom_name compiled successfully [skip ci]" -m "* now you can have successful build on just one commit
+* make sure to put R letter at the end of commit messages
+* like git commit -m your_msg R" --allow-empty
+  git push -f
+fi
+
+echo "dont upload cache again" > /tmp/abort.txt
+
+# Clean storage except ci files
+rm -rf /tmp/rom
+rm -rf /tmp/cache

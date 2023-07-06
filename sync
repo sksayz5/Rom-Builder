@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Create directory for syncing source
+mkdir -p /tmp/rom
+cd /tmp/rom
+. /tmp/ci/function
+
+SECONDS=0
+
+if [[ $git_cookies != 0 ]]; then
+  sudo touch /etc/mtab
+  sudo chmod 777 /etc/mtab
+
+  echo "$git_cookies" > ~/git_cookies.sh
+  bash ~/git_cookies.sh
+fi
+
+# Sync source
+repo init --depth=1 --no-repo-verify -u your rome  source with branch  -g default,-mips,-darwin,-notdefault
+
+# Sync source without unnecessary messages, try with -j30 first, if fails, try again
+repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j$(nproc --all) ||
+  repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j$(nproc --all)
+
+# Set up local manifest
+git clone --depth=1 https://$CIRRUS_REPO_OWNER:$gh_token@github.com/$CIRRUS_REPO_OWNER/your device tree
+git clone --depth=1 https://github.com/$CIRRUS_REPO_OWNER/you vender 
+git clone --depth=1 https://github.com/$CIRRUS_REPO_OWNER/your kernal
+
+tg "$rom_name source sync completed!
+Total Size: $(du -sh /tmp/rom | cut -d ' ' -f 1)
+Time Took: $(($SECONDS / 60)) minute(s) and $(($SECONDS % 60)) second(s).
+Status: $progress"
+
+echo "$(($SECONDS / 60))" > /tmp/sync_time.txt

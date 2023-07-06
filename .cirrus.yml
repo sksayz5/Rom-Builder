@@ -1,0 +1,53 @@
+env: # Environment variables to pass to all tasks
+  CIRRUS_CLONE_DEPTH: 1 # No need to clone with the whole history
+  CIRRUS_WORKING_DIR: "/tmp/ci" # Where to clone the aosp-builder repo
+
+# Store our secrets here
+
+  github_token:
+  bot_api: 
+  chat_id: 
+  git_cookies: 0
+
+# Store information about git here
+  gmail: sharmamukul06175@gmail.com
+
+# ××× Do not edit or touch anything below this ××× #
+  user_version: 2 # Let's start from 1
+
+task:
+  name: Corvus
+  timeout_in: 260m
+  container:
+    dockerfile: Dockerfile
+    cpu: 8
+    memory: 32G
+  steps:
+    - name: Download Cache Scripts
+      run: |
+        curl -o /tmp/ci/download_previous_ccache /main/download_previous_ccache
+        curl -o /tmp/ci/use_previous_ccache /main/use_previous_ccache
+        curl -o /tmp/ci/upload_previous_ccache /main/upload_previous_ccache
+      shell: bash
+
+    - name: Download CCache in Background
+      run: |
+        curl -o /tmp/ci/function /main/function # Locate your function file
+        curl -o /tmp/ci/download_ccache /main/download_ccache # Locate your ccache which was uploaded
+        bash /tmp/ci/download_ccache # CCache download script
+      shell: bash
+
+    - name: Sync Repository
+      run: bash sync
+      shell: bash
+
+    - name: Build with Previous Cache
+      run: |
+        bash /tmp/ci/use_previous_ccache
+        curl -o /tmp/ci/build /main/build
+        bash build
+      shell: bash
+
+    - name: Upload Cache
+      run: bash /tmp/ci/upload_previous_ccache
+      shell: bash

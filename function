@@ -1,0 +1,149 @@
+#!/bin/bash
+
+# set your gmail and email
+git config --global user.email "$gmail"
+git config --global user.name "$CIRRUS_REPO_OWNER"
+
+# set variables
+github_repo="https://$CIRRUS_REPO_OWNER:$github_token@github.com/$CIRRUS_REPO_FULL_NAME"
+progress=https://cirrus-ci.com/build/$CIRRUS_BUILD_ID
+device_codename=$(grep unch /tmp/ci/build.sh -m 1 | cut -d ' ' -f 2 | cut -d _ -f 2 | cut -d - -f 1)
+case "$device_codename" in
+  GM8)
+    device_codename=GM8_sprout
+    ;;
+  jasmine)
+    device_codename=jasmine_sprout
+    ;;
+  laurel)
+    device_codename=laurel_sprout
+    ;;
+  maple)
+    device_codename=maple_dsds
+    ;;
+esac
+rom_name=$(grep init /tmp/ci/sync -m 1 | cut -d / -f 4)
+upload_link=https://github.com/$CIRRUS_REPO_FULL_NAME
+branch_name=$(grep init /tmp/ci/sync | awk -F "-b " '{print $2}' | awk '{print $1}')
+upload_type=3
+latest_version=2
+
+# Compress function with pigz for faster compression
+com () {
+  tar --use-compress-program="pigz -k -$2 " -cf $1.tar.gz $1
+}
+
+# Install apt
+install_apt () {
+  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+  chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+  apt update && apt install -y wget pigz gh jq aria2
+  down indexlink/gclone_setup || down indexlink/gclone_setup
+  chmod 0775 gclone_setup && ./gclone_setup
+}
+
+# Login to GitHub before uploading
+echo $github_token > mytoken.txt # login to GitHub
+gh auth login --with-token < mytoken.txt
+
+# Download ccache
+down () {
+  SECONDS=0
+  time aria2c $1 -x16 -s50
+}
+
+# Upload our ROM zip
+upload () {
+  case "$upload_type" in
+    1) # GitHub
+      gh release create $rom_name --generate-notes --repo $upload_link
+      gh release upload --clobber $rom_name $1 --repo $upload_link
+      github_url=$upload_link/releases/download/$rom_name/$1
+      tg "Build Succeed!
+Filename: $1
+Zip Size: $(ls -sh ${PWD}/$1 | cut -d ' ' -f 1)
+Time Took: $(($SECONDS / 60))min and $(($SECONDS % 60))sec.
+GitHub link: $github_url"
+      ;;
+    2) # GDrive
+      gclone copy $1 your_id:$CIRRUS_REPO_OWNER/$device_codename/$rom_name/$branch_name -P
+      gdrive_url=indexlink/$CIRRUS_REPO_OWNER/$device_codename/$rom_name/$branch_name/$1
+      tg "Build Succeed!
+Filename: $1
+Zip Size: $(ls -sh ${PWD}/$1 | cut -d ' ' -f 1)
+Time Took: $(($SECONDS / 60))min and $(($SECONDS % 60))sec.
+GDrive link: $gdrive_url"
+      ;;
+    3) # Both
+      gclone copy $1 your_id:$CIRRUS_REPO_OWNER/$device_codename/$rom_name/$branch_name -P
+      gh release create $rom_name --generate-notes --repo $upload_link
+      gh release upload --clobber $rom_name $1 --repo $upload_link
+      github_url=$upload_link/releases/download/$rom_name/$1
+      gdrive_url=hindexlink/$CIRRUS_REPO_OWNER/$device_codename/$rom_name/$branch_name/$1
+      tg "Build Succeed!
+Filename: $1
+Zip Size: $(ls -sh ${PWD}/$1 | cut -d ' ' -f 1)
+Time Took: $(($SECONDS / 60))min and $(($SECONDS % 60))sec.
+GDrive link: $gdrive_url
+GitHub link: $github_url"
+      ;;
+    *) # Default is GDrive
+      gclone copy $1 your_id:$CIRRUS_REPO_OWNER/$device_codename/$rom_name/$branch_name -P
+      gdrive_url=indexlink/$CIRRUS_REPO_OWNER/$device_codename/$rom_name/$branch_name/$1
+      tg "Build Succeed!
+Filename: $1
+Zip Size: $(ls -sh ${PWD}/$1 | cut -d ' ' -f 1)
+Time Took: $(($SECONDS / 60))min and $(($SECONDS % 60))sec.
+GDrive link: $gdrive_url"
+      ;;
+  esac
+}
+
+# Upload our ccache
+upload_ccache () {
+  SECONDS=0
+  gclone copy $1 your_id:$device_codename/$rom_name/$branch_name -P
+}
+
+# Push to Telegram
+tg () {
+  curl -s "https://api.telegram.org/bot${bot_api}/sendmessage" --data "text=$1&chat_id=${chat_id}"
+}
+
+# Skip build if script is not latest
+if [[ $user_version != $latest_version ]]; then
+  # TG Notification
+ ## tg "Update on telegram 
+
+  # # Update for non-TG users
+  # git clone -b $CIRRUS_BRANCH $github_repo $rom_name && cd $rom_name
+  # git commit -sm "[skip ci] Main Repo has been updated. You may face errors with the old script. Please refork from the main repo: https://github.com/projects-nexus/cirrus-script/tree/main" --allow-empty
+  # git push -f
+  # # Skip build
+  # exit 1
+fi
+
+# Sync time
+sync_time () {
+  sync_time="`cat /tmp/sync_time.txt`"
+  rm -rf sync_time.txt
+}
+
+# Check Build Number
+check_build_type () {
+  last_dir=${PWD}
+  cd /tmp/ci
+  git show -s --format=%s | awk 'NF>1{print $NF}' > /tmp/last_value.txt # store last value from commit name
+  last_value="`cat /tmp/last_value.txt`" # store last value
+  case "$last_value" in
+    S|s|R|r)
+      build_type=$last_value
+      ;;
+    *) # Let's make "vendor" as the default value if no value is stored in the commit name
+      build_type=V
+      ;;
+  esac
+  cd $last_dir
+  rm -rf /tmp/last_* # clean up
+}

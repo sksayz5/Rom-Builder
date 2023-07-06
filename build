@@ -1,0 +1,98 @@
+#!/bin/bash
+
+# Define variables
+rom_directory="/tmp/rom"
+ci_directory="/tmp/ci"
+
+# Change directory to the ROM source directory
+cd "$rom_directory"
+
+# Source the function file and check the build type
+. "$ci_directory/function" && check_build_type
+
+# Source the build script
+. "$ci_directory/build.sh"
+
+# Set build-specific configurations
+case "$build_type" in
+  R|r)
+    export _JAVA_OPTIONS="-Xmx10g"
+    ;;
+esac
+
+# Configure ccache
+export CCACHE_DIR=/tmp/ccache
+export CCACHE_EXEC=$(which ccache)
+export USE_CCACHE=1
+ccache -M 15G
+ccache -o compression=true
+ccache -z
+
+# Measure sync time
+sync_time
+
+# Compile based on the build type
+case "$build_type" in
+  V|v) # Vendor / System build
+    SECONDS=0
+    make vendorimage -j$(nproc --all)
+    vendor_time=$(($SECONDS / 60))
+    sleeps=$((113 - ($vendor_time + $sync_time)))m
+    make systemimage -j$(nproc --all) | tee build.log &
+    sleep $sleeps
+    kill %1
+    if grep -q -e 'build stopped' -e 'FAILED:' "/tmp/rom/build.log"; then
+      echo "" > /tmp/abort_loop.txt # Use as guard for failed builds
+    fi
+    ;;
+  S|s) # System build
+    sleeps=$((113 - $sync_time))m
+    make systemimage -j$(nproc --all) | tee build.log &
+    sleep $sleeps
+    kill %1
+    if grep -q -e 'build stopped' -e 'FAILED:' "/tmp/rom/build.log"; then
+      echo "" > /tmp/abort_loop.txt # Use as guard for failed builds
+    fi
+    ;;
+  R|r) # Full ROM build
+    compile_plox | tee build.log
+    if [ ! -e "out/target/product/*/*2022*.zip" ]; then # To bypass OOM kill
+      sed -i 's/-j$(nproc --all)/-j7/' "$ci_directory/build.sh"
+      . "$ci_directory/build.sh" # Run again to update values before starting compilation
+      compile_plox # Simply re-run the build with fewer threads
+    fi
+    if [ ! -e "out/target/product/*/*2022*.zip" ]; then
+      sed -i 's/-j7/-j6/' "$ci_directory/build.sh"
+      . "$ci_directory/build.sh"
+      compile_plox # Just in case if -1 thread didn't help
+    fi
+    if grep -q -e 'build stopped' -e 'FAILED:' "/tmp/rom/build.log"; then
+      echo "" > /tmp/abort_loop.txt # Use as guard for failed builds
+    fi
+    ;;
+esac
+
+# Determine the build type based on the existence of the system.img file
+if [ -e "out/target/product/$device_codename/system.img" ]; then
+  echo "R" > /tmp/build_type.txt
+else
+  echo "S" > /tmp/build_type.txt
+fi
+
+# Change directory to the build output directory
+cd "out/target/product/$device_codename/"
+
+# List and upload the generated zip files
+ls *2022*zip && upload *2022*zip
+
+# Check if the ROM zip file was not generated
+if [ ! -e "/tmp/rom/out/target/product/*/*2022*.zip" ]; then
+  # Don't send this again if the background loop has already done this when it was stuck in sleep
+  if [ ! -e "/tmp/abort.txt" ]; then
+    tg "Stop Compiling $build_type To Collect Cache
+    Status: $progress"
+  fi
+fi
+
+# Print ccache statistics
+ccache -s
