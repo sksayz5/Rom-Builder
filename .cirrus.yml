@@ -19,7 +19,7 @@ task:
   name: Corvus
   timeout_in: 260m
   container:
-    dockerfile: Dockerfile
+    dockerfile: shazuxdd/ubuntu:latest
     cpu: 8
     memory: 32G
   steps:
