@@ -24,7 +24,7 @@ esac
 export CCACHE_DIR=/tmp/ccache
 export CCACHE_EXEC=$(which ccache)
 export USE_CCACHE=1
-ccache -M 60G
+ccache -M 90G
 ccache -o compression=true
 ccache -z
 
