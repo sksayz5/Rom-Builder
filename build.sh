@@ -1,3 +1,5 @@
+#!bin/bash
+
 # Normal build steps
 . build/envsetup.sh
 lunch octavi_RMX1901-userdebug
