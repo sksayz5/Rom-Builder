@@ -1,6 +1,6 @@
 # Normal build steps
 . build/envsetup.sh
-lunch romname_your-device-codename-build-type
+lunch octavi_RMX1901-userdebug
 
 # export variable here
 export TZ=Asia/Kolkata
