@@ -19,7 +19,7 @@ task:
   name: Corvus
   timeout_in: 260m
   container:
-    dockerfile: gcr.io/cirrus-ci-community/sksayz5/rom-builder-1/dockerfile
+    image: shazuxdd/ubuntu:latest
     cpu: 8
     memory: 32G
   steps:
