@@ -26,4 +26,4 @@ jobs:
         github_token: ${{ secrets.GH_TOKEN }}
         author_email: 'ci.twrp@gmail.com'
         author_name: 'RecoveryBuilder'
-        message: 'git commit -m "ci: Lets Build rom_name android_verison'
+        message: 'git commit -m "ci: Lets Build Octavi 13'
