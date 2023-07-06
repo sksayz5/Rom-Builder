@@ -19,7 +19,7 @@ task:
   name: Corvus
   timeout_in: 260m
   container:
-    dockerfile: Dockerfile
+    image: ghcr.io/sksayz5/docker:arch 
     cpu: 8
     memory: 32G
   steps:
