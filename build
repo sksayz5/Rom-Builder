@@ -1,6 +1,4 @@
 #!/bin/bash
-
-# Define variables
 rom_directory="/tmp/rom"
 ci_directory="/tmp/ci"
 
