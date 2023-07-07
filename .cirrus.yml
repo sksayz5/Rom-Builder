@@ -1,6 +1,6 @@
 env: # Environment variables to pass to all tasks
   CIRRUS_CLONE_DEPTH: 1 # No need to clone with the whole history
-  CIRRUS_WORKING_DIR: "/tmp/" # Where to clone the aosp-builder repo
+  CIRRUS_WORKING_DIR: "/tmp" # Where to clone the aosp-builder repo
 
 # Store our secrets here
 
