@@ -8,7 +8,7 @@ env: # Environment variables to pass to all tasks
   bot_api: ENCRYPTED[!414ff46c26e638f951714c8741af7b51f77812c4eb08d3076a0ed56607437bea241448e1b1657187d71cdd63f9214bee!]
   chat_id: ENCRYPTED[!6610b18733924ab5eedfcb51e74ae92b5ecb8d869c6eae9abd4e01182e8aaeb7cb8c3ef88b2cc43a61debbfaba7d9118!]
   git_cookies: 0
-
+  CLO: idl:ci
 # Store information about git here
   gmail: sksayz5@gmail.com
 
