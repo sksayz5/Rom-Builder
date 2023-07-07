@@ -7,7 +7,7 @@ env: # Environment variables to pass to all tasks
   github_token: ENCRYPTED[!4839f1362e2f917aed69597c878fec2b1e52ad0cc2795fbda9716b1e1324dbfa7f5f6a88c16bb4883060693bcb1f2f06!]
   bot_api: ENCRYPTED[!414ff46c26e638f951714c8741af7b51f77812c4eb08d3076a0ed56607437bea241448e1b1657187d71cdd63f9214bee!]
   chat_id: ENCRYPTED[!6610b18733924ab5eedfcb51e74ae92b5ecb8d869c6eae9abd4e01182e8aaeb7cb8c3ef88b2cc43a61debbfaba7d9118!]
-  git_cookies: 1
+  git_cookies: 0
 
 # Store information about git here
   gmail: sksayz5@gmail.com
